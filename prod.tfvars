@@ -1,0 +1,12 @@
+environment                  =  "prod"
+region                       =  "us-west-1"
+cluster_name                 =  "eks-prod"
+vpc_cidr                     =  "10.0.0.0/16"
+vpc_name                     =  "eks-main"
+public_subnets_cidr          =  ["10.0.16.0/20", "10.0.48.0/20", "10.0.80.0/20"]
+private_subnets_cidr         =  ["10.0.0.0/20", "10.0.32.0/20", "10.0.64.0/20"]
+availability_zones           =  ["us-west-1a", "us-west-1b", "us-west-1c"]
+cidr_block-internet_gw       =  "0.0.0.0/0"
+cidr_block-nat_gw            =  "0.0.0.0/0"
+eks_node_group_instance_types=  "t3.xlarge"
+fargate_namespace            =  "fargate-node"
