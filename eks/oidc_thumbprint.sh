@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 # source: https://github.com/terraform-providers/terraform-provider-aws/issues/10104

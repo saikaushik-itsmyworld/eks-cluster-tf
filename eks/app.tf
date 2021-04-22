@@ -32,63 +32,76 @@ resource "aws_iam_role" "fargate_pod_execution_role" {
 POLICY
 }
 
-# resource "aws_eks_fargate_profile" "main" {
-#   cluster_name           = aws_eks_cluster.main.name
-#   fargate_profile_name   = "fp-default"
-#   pod_execution_role_arn = aws_iam_role.fargate_pod_execution_role.arn
-#   subnet_ids             = var.private_subnets.*.id
-# }
+resource "aws_eks_fargate_profile" "main" {
+  cluster_name           = aws_eks_cluster.main.name
+  fargate_profile_name   = "fp-default"
+  pod_execution_role_arn = aws_iam_role.fargate_pod_execution_role.arn
+  subnet_ids             = var.private_subnets.*.id
 
-# resource "kubernetes_namespace" "example" {
-#   metadata {
-#     labels = {
-#       app = "2048"
-#     }
+  selector {
+    namespace = "default"
+  }
 
-#     name = "2048-game"
-#   }
-# }
+  selector {
+    namespace = "2048-game"
+  }
 
-# resource "kubernetes_deployment" "app" {
-#   metadata {
-#     name      = "deployment-2048"
-#     namespace = "2048-game"
-#     labels    = {
-#       app = "2048"
-#     }
-#   }
+  timeouts {
+    create = "30m"
+    delete = "60m"
+  }
+}
 
-#   spec {
-#     replicas = 2
+resource "kubernetes_namespace" "example" {
+  metadata {
+    labels = {
+      app = "2048"
+    }
 
-#     selector {
-#       match_labels = {
-#         app = "2048"
-#       }
-#     }
+    name = "2048-game"
+  }
+}
 
-#     template {
-#       metadata {
-#         labels = {
-#           app = "2048"
-#         }
-#       }
+resource "kubernetes_deployment" "app" {
+  metadata {
+    name      = "deployment-2048"
+    namespace = "2048-game"
+    labels    = {
+      app = "2048"
+    }
+  }
 
-#       spec {
-#         container {
-#           image = "alexwhen/docker-2048"
-#           name  = "2048"
+  spec {
+    replicas = 2
 
-#           port {
-#             container_port = 80
-#           }
-#         }
-#       }
-#     }
-#   }
+    selector {
+      match_labels = {
+        app = "2048"
+      }
+    }
 
-#   depends_on = [aws_eks_fargate_profile.main]
-# }
+    template {
+      metadata {
+        labels = {
+          app = "2048"
+        }
+      }
+
+      spec {
+        container {
+          image = "alexwhen/docker-2048"
+          name  = "2048"
+
+          port {
+            container_port = 80
+          }
+        }
+      }
+    }
+  }
+
+  depends_on = [aws_eks_fargate_profile.main]
+}
 
 # resource "kubernetes_service" "app" {
 #   metadata {
@@ -140,5 +153,5 @@ POLICY
 #     }
 #   }
 
-#   depends_on = [kubernetes_service.app]
-# }
+  # depends_on = [kubernetes_service.app]
+#}

@@ -29,11 +29,11 @@ module "eks" {
   kubeconfig_path = var.kubeconfig_path
 }
 
-module "ingress" {
-  source       = "./ingress"
-  name         = var.name
-  environment  = var.environment
-  region       = var.region
-  vpc_id       = module.vpc.id
-  cluster_id   = module.eks.cluster_id
-}
+# module "ingress" {
+#   source       = "./ingress"
+#   name         = var.name
+#   environment  = var.environment
+#   region       = var.region
+#   vpc_id       = module.vpc.id
+#   cluster_id   = module.eks.cluster_id
+# }
