@@ -26,7 +26,13 @@ module "eks" {
   vpc_id          = module.vpc.id
   private_subnets = module.vpc.private_subnets
   public_subnets  = module.vpc.public_subnets
+  # private_subnet_ids = module.vpc.private_subnet_ids
+  # public_subnet_ids = module.vpc.public_subnet_ids
   kubeconfig_path = var.kubeconfig_path
+  #depends_on      = [module.vpc]
+}
+output "config_map_aws_auth" {
+  value = "${module.eks.config_map_aws_auth}"
 }
 
 # module "ingress" {

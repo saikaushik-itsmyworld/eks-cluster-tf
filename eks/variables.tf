@@ -26,6 +26,14 @@ variable "public_subnets" {
   description = "List of private subnet IDs"
 }
 
+# variable "private_subnet_ids" {
+#   description = "List of private subnet ids"
+# }
+
+# variable "public_subnet_ids" {
+#   description = "List of public subnet ids"
+# }
+
 variable "kubeconfig_path" {
   description = "Path where the config file for kubectl should be written to"
 }
