@@ -25,7 +25,21 @@ data "aws_eks_cluster" "cluster" {
 data "aws_eks_cluster_auth" "cluster" {
   name = aws_eks_cluster.main.id
 }
-
+# data "aws_subnet_ids" "eks_vpc" {
+#   vpc_id = var.vpc_id
+# }
+# data "aws_subnet_ids" "private" {
+#   vpc_id = var.vpc_id
+#   tags = {
+#     Name = "*private*"
+#   }
+# }
+# data "aws_subnet_ids" "public" {
+#   vpc_id = var.vpc_id
+#   tags = {
+#     Name = "*public*"
+#   }
+# }
 #subnet_ids = concat(var.public_subnets.*.id, var.private_subnets.*.id)
 
 resource "aws_iam_policy" "AmazonEKSClusterCloudWatchMetricsPolicy" {
@@ -339,7 +353,9 @@ resource "aws_autoscaling_group" "demo" {
   name                 = "terraform-eks"
   #vpc_zone_identifier  = [vpc_config]
   #subnet_ids           = var.private_subnets.*.id
-  vpc_zone_identifier  = var.public_subnets.*.id
+  vpc_zone_identifier  = [
+                         var.public_subnets[0].id, var.public_subnets[1].id, var.public_subnets[2].id, var.private_subnets[0].id, var.private_subnets[1].id, var.private_subnets[2].id
+                         ]
   tag {
     key                 = "Name"
     value               = "terraform-eks-demo"
