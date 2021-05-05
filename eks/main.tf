@@ -323,7 +323,7 @@ resource "aws_launch_configuration" "demo" {
   image_id                    = "${data.aws_ami.eks-worker.id}"
   instance_type               = "m4.large"
   name_prefix                 = "terraform-eks-demo"
-  security_groups             = ["${aws_security_group.demo-node.id}"]
+  security_groups             = ["${aws_security_group.demo-node.id}", "${aws_security_group.demo-cluster.id}"]
   user_data_base64            = "${base64encode(local.demo-node-userdata)}"
 
   lifecycle {
