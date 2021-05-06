@@ -133,6 +133,11 @@ resource "aws_cloudwatch_log_group" "eks_cluster" {
   }
 }
 
+resource "aws_key_pair" "eks_key" {
+  key_name   = "eks-key"
+  public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCx+VK7X6jtnEMYVYoWvmyS8cRNvRG8l3y8Qn7cQlO1wMhroRxQgvKCV9M1mmYGEDZfugr+ZnAMWo7kFhz1oBZwasUFzcMKwW1Oup/HTXg/s0/FowTDwf1IxkwgfE/CiUK3WwYTdieTbUolg4Rlx2E/4rpsf/7/xjtQLRUEjpRB3y+0J/Pdqu4vaKgg+HGwTj3n1eeEjLe9z15jnitKlAmDbjqcB1lSyiEM7KjK3P8X34UnL/jGJSaAQbycJdgkjdFpKNho9now2tGB4Ue00YB2wYGos/XZnrL9XrKAPzkIUAq7DYavB6H/uXz0yoP6EP/NPVqSGgj/5yGoe3C58ubQx5K5NO7YxpW9xnM8JgKoK/Q34TAezbcWXAH1yXutetvQ1fj9VSXpfyfbfmZ6FnGBDrOI12kLK7loskZMIyJtWkvxrn/I4IdAXTj2Z2FR+U0V0JVvUJyRpbQIy7ESjCYO6oujfJQzGCyQErB+DkS7MNd1jbq+d6twinNR+ys4z8E= sushmasrigolla@Sushmas-MacBook-Pro.local"
+  }
+
 resource "aws_security_group" "demo-cluster" {
   name        = "terraform-eks-demo-cluster"
   description = "Cluster communication with worker nodes"
@@ -143,6 +148,8 @@ resource "aws_security_group" "demo-cluster" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+    #security_group_id = "${aws_security_group.demo-node.id}"
+    #source_security_group_id = "${aws_security_group.demo-cluster.id}"
   }
 
   tags = {
@@ -150,9 +157,31 @@ resource "aws_security_group" "demo-cluster" {
   }
 }
 
+resource "aws_security_group_rule" "cluster_egress_nodes" {
+  description       = "Allow cluster egress access to the Internet."
+  protocol          = "-1"
+  security_group_id = "${aws_security_group.demo-cluster.id}"
+  source_security_group_id = "${aws_security_group.demo-node.id}"
+  #cidr_blocks       = ["0.0.0.0/0"]
+  from_port         = 0
+  to_port           = 0
+  type              = "egress"
+}
+
+resource "aws_security_group_rule" "cluster_ingress_nodes" {
+  description       = "Allow cluster access to the from nodes."
+  protocol          = "-1"
+  security_group_id = "${aws_security_group.demo-cluster.id}"
+  source_security_group_id = "${aws_security_group.demo-node.id}"
+  #cidr_blocks       = ["0.0.0.0/0"]
+  from_port         = 0
+  to_port           = 0
+  type              = "ingress"
+}
+
 # OPTIONAL: Allow inbound traffic from your local workstation external IP
 #           to the Kubernetes. You will need to replace A.B.C.D below with
-#           your real IP. Services like icanhazip.com can help you find this.
+#           your real IP. Services like icanhazip.com can help you find this. "76.196.200.71/32"
 resource "aws_security_group_rule" "demo-cluster-ingress-workstation-https" {
   cidr_blocks       = ["76.196.200.71/32"]
   description       = "Allow workstation to communicate with the cluster API Server"
@@ -253,7 +282,7 @@ resource "aws_security_group" "demo-node" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [ "0.0.0.0/0" ]
   }
 
   tags = "${
@@ -270,7 +299,7 @@ resource "aws_security_group_rule" "demo-node-ingress-self" {
   protocol                 = "-1"
   security_group_id        = "${aws_security_group.demo-node.id}"
   source_security_group_id = "${aws_security_group.demo-node.id}"
-  to_port                  = 65535
+  to_port                  = 0
   type                     = "ingress"
 }
 
@@ -284,18 +313,8 @@ resource "aws_security_group_rule" "demo-node-ingress-cluster-https" {
   type                     = "ingress"
 }
 
-resource "aws_security_group_rule" "demo-node-ingress-cluster-others" {
-  description              = "Allow worker Kubelets and pods to receive communication from the cluster control plane"
-  from_port                = 1025
-  protocol                 = "tcp"
-  security_group_id        = "${aws_security_group.demo-node.id}"
-  source_security_group_id = "${aws_security_group.demo-cluster.id}"
-  to_port                  = 65535
-  type                     = "ingress"
-}
-
-resource "aws_security_group_rule" "demo-cluster-ingress-node-https" {
-  description              = "Allow pods to communicate with the cluster API Server"
+resource "aws_security_group_rule" "demo-node-egress-cluster-https" {
+  description              = "Allow worker Kubelets and pods to talk back to cluster control plane"
   from_port                = 443
   protocol                 = "tcp"
   security_group_id        = "${aws_security_group.demo-cluster.id}"
@@ -303,6 +322,26 @@ resource "aws_security_group_rule" "demo-cluster-ingress-node-https" {
   to_port                  = 443
   type                     = "ingress"
 }
+
+resource "aws_security_group_rule" "demo-node-ingress-cluster-others" {
+  description              = "Allow worker Kubelets and pods to receive communication from the cluster control plane"
+  from_port                = 0
+  protocol                 = "-1"
+  security_group_id        = "${aws_security_group.demo-node.id}"
+  source_security_group_id = "${aws_security_group.demo-cluster.id}"
+  to_port                  = 0
+  type                     = "ingress"
+}
+
+# resource "aws_security_group_rule" "demo-cluster-ingress-node-https" {
+#   description              = "Allow pods to communicate with the cluster API Server"
+#   from_port                = 0
+#   protocol                 = "-1"
+#   security_group_id        = "${aws_security_group.demo-cluster.id}"
+#   source_security_group_id = "${aws_security_group.demo-node.id}"
+#   to_port                  = 0
+#   type                     = "ingress"
+# }
 
 data "aws_ami" "eks-worker" {
   filter {
@@ -337,8 +376,12 @@ resource "aws_launch_configuration" "demo" {
   image_id                    = "${data.aws_ami.eks-worker.id}"
   instance_type               = "m4.large"
   name_prefix                 = "terraform-eks-demo"
-  security_groups             = ["${aws_security_group.demo-node.id}", "${aws_security_group.demo-cluster.id}"]
+  security_groups             = [
+                                 aws_security_group.demo-node.id, 
+                                 aws_security_group.demo-cluster.id
+                                 ]
   user_data_base64            = "${base64encode(local.demo-node-userdata)}"
+  key_name                    = "eks-keypair"
 
   lifecycle {
     create_before_destroy = true
