@@ -133,11 +133,8 @@ resource "aws_cloudwatch_log_group" "eks_cluster" {
   }
 }
 
-resource "aws_key_pair" "eks_key" {
-  key_name   = "eks-key"
-  public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCx+VK7X6jtnEMYVYoWvmyS8cRNvRG8l3y8Qn7cQlO1wMhroRxQgvKCV9M1mmYGEDZfugr+ZnAMWo7kFhz1oBZwasUFzcMKwW1Oup/HTXg/s0/FowTDwf1IxkwgfE/CiUK3WwYTdieTbUolg4Rlx2E/4rpsf/7/xjtQLRUEjpRB3y+0J/Pdqu4vaKgg+HGwTj3n1eeEjLe9z15jnitKlAmDbjqcB1lSyiEM7KjK3P8X34UnL/jGJSaAQbycJdgkjdFpKNho9now2tGB4Ue00YB2wYGos/XZnrL9XrKAPzkIUAq7DYavB6H/uXz0yoP6EP/NPVqSGgj/5yGoe3C58ubQx5K5NO7YxpW9xnM8JgKoK/Q34TAezbcWXAH1yXutetvQ1fj9VSXpfyfbfmZ6FnGBDrOI12kLK7loskZMIyJtWkvxrn/I4IdAXTj2Z2FR+U0V0JVvUJyRpbQIy7ESjCYO6oujfJQzGCyQErB+DkS7MNd1jbq+d6twinNR+ys4z8E= sushmasrigolla@Sushmas-MacBook-Pro.local"
-  }
-
+## Security Group rules needs to be updated Based on the recommendations on this article
+##https://docs.aws.amazon.com/eks/latest/userguide/sec-group-reqs.html
 resource "aws_security_group" "demo-cluster" {
   name        = "terraform-eks-demo-cluster"
   description = "Cluster communication with worker nodes"
@@ -200,6 +197,10 @@ resource "aws_eks_cluster" "main" {
 
   vpc_config {
     subnet_ids = concat(var.public_subnets.*.id, var.private_subnets.*.id)
+    #vpc_id = var.vpc_id
+    #endpoint_public_access = true
+    #public_access_cidrs = "0.0.0.0/0"
+    #security_group_ids = ["${aws_security_group.demo-cluster.id}", "${aws_security_group.demo-node.id}"]
   }
 
   timeouts {
