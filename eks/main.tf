@@ -198,9 +198,9 @@ resource "aws_eks_cluster" "main" {
   vpc_config {
     subnet_ids = concat(var.public_subnets.*.id, var.private_subnets.*.id)
     #vpc_id = var.vpc_id
-    #endpoint_public_access = true
-    #public_access_cidrs = "0.0.0.0/0"
-    #security_group_ids = ["${aws_security_group.demo-cluster.id}", "${aws_security_group.demo-node.id}"]
+    endpoint_public_access = true
+    public_access_cidrs = ["0.0.0.0/0"]
+    security_group_ids = [ "${aws_security_group.demo-cluster.id}"]
   }
 
   timeouts {
@@ -210,7 +210,9 @@ resource "aws_eks_cluster" "main" {
   depends_on = [
     aws_cloudwatch_log_group.eks_cluster,
     aws_iam_role_policy_attachment.AmazonEKSClusterPolicy,
-    aws_iam_role_policy_attachment.AmazonEKSServicePolicy
+    aws_iam_role_policy_attachment.AmazonEKSServicePolicy,
+    #aws_security_group.demo-node,
+    #aws_security_group.demo-cluster
   ]
 }
 
