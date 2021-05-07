@@ -135,6 +135,7 @@ resource "aws_cloudwatch_log_group" "eks_cluster" {
 
 ## Security Group rules needs to be updated Based on the recommendations on this article
 ##https://docs.aws.amazon.com/eks/latest/userguide/sec-group-reqs.html
+## Security Groups - https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group_rule
 resource "aws_security_group" "demo-cluster" {
   name        = "terraform-eks-demo-cluster"
   description = "Cluster communication with worker nodes"
@@ -346,6 +347,8 @@ resource "aws_security_group_rule" "Allow-SSH" {
   type                     = "ingress"
 }
 
+## EKS-Optimized AMIs details can be found here.
+## https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html
 data "aws_ami" "eks-worker" {
   filter {
     name   = "name"

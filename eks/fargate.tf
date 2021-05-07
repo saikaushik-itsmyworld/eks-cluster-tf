@@ -9,6 +9,7 @@ resource "aws_iam_role_policy_attachment" "AmazonEKSFargatePodExecutionRolePolic
   role       = aws_iam_role.fargate_pod_execution_role.name
 }
 
+##https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eks_fargate_profile
 resource "aws_iam_role" "fargate_pod_execution_role" {
   name                  = "${var.name}-eks-fargate-pod-execution-role"
   force_detach_policies = true
@@ -32,6 +33,7 @@ resource "aws_iam_role" "fargate_pod_execution_role" {
 POLICY
 }
 
+## https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eks_fargate_profile
 resource "aws_eks_fargate_profile" "main" {
   cluster_name           = aws_eks_cluster.main.name
   fargate_profile_name   = "fp-default"

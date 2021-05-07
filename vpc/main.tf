@@ -1,5 +1,5 @@
 /* IMPORTANT: https://docs.aws.amazon.com/eks/latest/userguide/network_reqs.html */
-
+## https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc
 resource "aws_vpc" "main" {
   cidr_block           = var.cidr
   enable_dns_support   = true
@@ -12,6 +12,7 @@ resource "aws_vpc" "main" {
   }
 }
 
+##https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/internet_gateway
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 
@@ -21,6 +22,7 @@ resource "aws_internet_gateway" "main" {
   }
 }
 
+##https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/nat_gateway
 resource "aws_nat_gateway" "main" {
   count         = length(var.private_subnets)
   allocation_id = element(aws_eip.nat.*.id, count.index)
@@ -33,6 +35,7 @@ resource "aws_nat_gateway" "main" {
   }
 }
 
+##https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eip
 resource "aws_eip" "nat" {
   count = length(var.private_subnets)
   vpc = true
