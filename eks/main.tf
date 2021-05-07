@@ -336,15 +336,15 @@ resource "aws_security_group_rule" "demo-node-ingress-cluster-others" {
   type                     = "ingress"
 }
 
-# resource "aws_security_group_rule" "demo-cluster-ingress-node-https" {
-#   description              = "Allow pods to communicate with the cluster API Server"
-#   from_port                = 0
-#   protocol                 = "-1"
-#   security_group_id        = "${aws_security_group.demo-cluster.id}"
-#   source_security_group_id = "${aws_security_group.demo-node.id}"
-#   to_port                  = 0
-#   type                     = "ingress"
-# }
+resource "aws_security_group_rule" "Allow-SSH" {
+  description              = "Allow pods to communicate with the cluster API Server"
+  from_port                = 22
+  protocol                 = "tcp"
+  security_group_id        = "${aws_security_group.demo-node.id}"
+  cidr_blocks              = ["0.0.0.0/0"]
+  to_port                  = 22
+  type                     = "ingress"
+}
 
 data "aws_ami" "eks-worker" {
   filter {
@@ -369,7 +369,7 @@ locals {
   demo-node-userdata = <<USERDATA
 #!/bin/bash
 set -o xtrace
-/etc/eks/bootstrap.sh --apiserver-endpoint '${aws_eks_cluster.main.endpoint}' --b64-cluster-ca '${aws_eks_cluster.main.certificate_authority.0.data}' '${aws_eks_cluster.main.name}'
+/etc/eks/bootstrap.sh --apiserver-endpoint '${aws_eks_cluster.main.endpoint}' --b64-cluster-ca '${aws_eks_cluster.main.certificate_authority.0.data}' '${aws_eks_cluster.main.name}' && sudo yum update -y && sudo yum install amazon-cloudwatch-agent -y && sudo amazon-linux-extras install epel -y && sudo yum install stress -y
 USERDATA
 }
 
@@ -487,7 +487,7 @@ data:
         - system:bootstrappers
         - system:nodes
         - system:node-proxier
-      rolearn: ${aws_iam_role.fargate_pod_execution_role.arn}
+    - rolearn: ${aws_iam_role.fargate_pod_execution_role.arn}
       username: system:node:{{SessionName}}
 CONFIGMAPAWSAUTH
 }
