@@ -11,5 +11,5 @@ data:
         - system:bootstrappers
         - system:nodes
         - system:node-proxier
-      rolearn: arn:aws:iam::956906780134:role/eks-eks-fargate-pod-execution-role
+    - rolearn: arn:aws:iam::956906780134:role/eks-eks-fargate-pod-execution-role
       username: system:node:{{SessionName}}
