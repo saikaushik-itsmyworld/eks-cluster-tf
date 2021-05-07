@@ -396,12 +396,16 @@ resource "aws_autoscaling_group" "demo" {
   launch_configuration = "${aws_launch_configuration.demo.id}"
   max_size             = 6
   min_size             = 3
+  force_delete         = true
   name                 = "terraform-eks"
   #vpc_zone_identifier  = [vpc_config]
   #subnet_ids           = var.private_subnets.*.id
-  vpc_zone_identifier  = [
-                         var.public_subnets[0].id, var.public_subnets[1].id, var.public_subnets[2].id, var.private_subnets[0].id, var.private_subnets[1].id, var.private_subnets[2].id
-                         ]
+  vpc_zone_identifier  = [var.public_subnets[0].id, var.public_subnets[1].id, var.public_subnets[2].id, var.private_subnets[0].id, var.private_subnets[1].id, var.private_subnets[2].id]
+  
+  timeouts {
+    delete = "15m"
+  }
+
   tag {
     key                 = "Name"
     value               = "terraform-eks-demo"
@@ -413,6 +417,11 @@ resource "aws_autoscaling_group" "demo" {
     value               = "owned"
     propagate_at_launch = true
   }
+  depends_on = [
+    aws_iam_role_policy_attachment.AmazonEKSWorkerNodePolicy,
+    aws_iam_role_policy_attachment.AmazonEKS_CNI_Policy,
+    aws_iam_role_policy_attachment.AmazonEC2ContainerRegistryReadOnly,
+  ]
 }
 # resource "aws_eks_node_group" "main" {
 #   cluster_name    = aws_eks_cluster.main.name
@@ -477,6 +486,9 @@ data:
       groups:
         - system:bootstrappers
         - system:nodes
+        - system:node-proxier
+      rolearn: ${aws_iam_role.fargate_pod_execution_role.arn}
+      username: system:node:{{SessionName}}
 CONFIGMAPAWSAUTH
 }
 
