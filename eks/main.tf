@@ -423,6 +423,24 @@ resource "aws_autoscaling_group" "demo" {
     aws_iam_role_policy_attachment.AmazonEC2ContainerRegistryReadOnly,
   ]
 }
+
+## https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/autoscaling_policy#policy_type
+resource "aws_autoscaling_policy" "asg-policy" {
+  name                      = "eks-asg-cpu-policy"
+  #scaling_adjustment        = 4
+  policy_type               = "TargetTrackingScaling"
+  estimated_instance_warmup = 100
+  #cooldown                  = 60
+  autoscaling_group_name    = aws_autoscaling_group.demo.name
+
+  target_tracking_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ASGAverageCPUUtilization"
+    }
+
+    target_value = 40.0
+  }
+}
 # resource "aws_eks_node_group" "main" {
 #   cluster_name    = aws_eks_cluster.main.name
 #   node_group_name = "kube-system"
