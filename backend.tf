@@ -1,6 +1,6 @@
 terraform {
    backend "s3" {
-        bucket = "eks-infra"
+        bucket = "eks-infra-mcx"
         key = "state/eks-cluster"
         region = "us-east-1"
         encrypt = "true"
