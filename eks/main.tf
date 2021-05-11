@@ -25,6 +25,22 @@ data "aws_eks_cluster" "cluster" {
 data "aws_eks_cluster_auth" "cluster" {
   name = aws_eks_cluster.main.id
 }
+# data "aws_subnet_ids" "eks_vpc" {
+#   vpc_id = var.vpc_id
+# }
+# data "aws_subnet_ids" "private" {
+#   vpc_id = var.vpc_id
+#   tags = {
+#     Name = "*private*"
+#   }
+# }
+# data "aws_subnet_ids" "public" {
+#   vpc_id = var.vpc_id
+#   tags = {
+#     Name = "*public*"
+#   }
+# }
+#subnet_ids = concat(var.public_subnets.*.id, var.private_subnets.*.id)
 
 resource "aws_iam_policy" "AmazonEKSClusterCloudWatchMetricsPolicy" {
   name   = "AmazonEKSClusterCloudWatchMetricsPolicy"
@@ -117,6 +133,63 @@ resource "aws_cloudwatch_log_group" "eks_cluster" {
   }
 }
 
+## Security Group rules needs to be updated Based on the recommendations on this article
+##https://docs.aws.amazon.com/eks/latest/userguide/sec-group-reqs.html
+## Security Groups - https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group_rule
+resource "aws_security_group" "demo-cluster" {
+  name        = "terraform-eks-demo-cluster"
+  description = "Cluster communication with worker nodes"
+  vpc_id      = "${var.vpc_id}"
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    #security_group_id = "${aws_security_group.demo-node.id}"
+    #source_security_group_id = "${aws_security_group.demo-cluster.id}"
+  }
+
+  tags = {
+    Name = "terraform-eks-demo"
+  }
+}
+
+resource "aws_security_group_rule" "cluster_egress_nodes" {
+  description       = "Allow cluster egress access to the Internet."
+  protocol          = "-1"
+  security_group_id = "${aws_security_group.demo-cluster.id}"
+  source_security_group_id = "${aws_security_group.demo-node.id}"
+  #cidr_blocks       = ["0.0.0.0/0"]
+  from_port         = 0
+  to_port           = 0
+  type              = "egress"
+}
+
+resource "aws_security_group_rule" "cluster_ingress_nodes" {
+  description       = "Allow cluster access to the from nodes."
+  protocol          = "-1"
+  security_group_id = "${aws_security_group.demo-cluster.id}"
+  source_security_group_id = "${aws_security_group.demo-node.id}"
+  #cidr_blocks       = ["0.0.0.0/0"]
+  from_port         = 0
+  to_port           = 0
+  type              = "ingress"
+}
+
+# OPTIONAL: Allow inbound traffic from your local workstation external IP
+#           to the Kubernetes. You will need to replace A.B.C.D below with
+#           your real IP. Services like icanhazip.com can help you find this. "76.196.200.71/32"
+resource "aws_security_group_rule" "demo-cluster-ingress-workstation-https" {
+  cidr_blocks       = ["76.196.200.71/32"]
+  description       = "Allow workstation to communicate with the cluster API Server"
+  from_port         = 443
+  protocol          = "tcp"
+  security_group_id = "${aws_security_group.demo-cluster.id}"
+  to_port           = 443
+  type              = "ingress"
+}
+
 resource "aws_eks_cluster" "main" {
   name     = "${var.name}-${var.environment}"
   role_arn = aws_iam_role.eks_cluster_role.arn
@@ -125,6 +198,10 @@ resource "aws_eks_cluster" "main" {
 
   vpc_config {
     subnet_ids = concat(var.public_subnets.*.id, var.private_subnets.*.id)
+    #vpc_id = var.vpc_id
+    endpoint_public_access = true
+    public_access_cidrs = ["0.0.0.0/0"]
+    security_group_ids = [ "${aws_security_group.demo-cluster.id}"]
   }
 
   timeouts {
@@ -134,7 +211,9 @@ resource "aws_eks_cluster" "main" {
   depends_on = [
     aws_cloudwatch_log_group.eks_cluster,
     aws_iam_role_policy_attachment.AmazonEKSClusterPolicy,
-    aws_iam_role_policy_attachment.AmazonEKSServicePolicy
+    aws_iam_role_policy_attachment.AmazonEKSServicePolicy,
+    #aws_security_group.demo-node,
+    #aws_security_group.demo-cluster
   ]
 }
 
@@ -191,35 +270,210 @@ resource "aws_iam_role_policy_attachment" "AmazonEC2ContainerRegistryReadOnly" {
   role       = aws_iam_role.eks_node_group_role.name
 }
 
-resource "aws_eks_node_group" "main" {
-  cluster_name    = aws_eks_cluster.main.name
-  node_group_name = "kube-system"
-  node_role_arn   = aws_iam_role.eks_node_group_role.arn
-  subnet_ids      = var.private_subnets.*.id
+resource "aws_iam_instance_profile" "eks_iam_instance_profile" {
+  name = "terraform-eks"
+  role = "${aws_iam_role.eks_node_group_role.name}"
+}
 
-  scaling_config {
-    desired_size = 3
-    max_size     = 6
-    min_size     = 3
+
+resource "aws_security_group" "demo-node" {
+  name        = "terraform-eks-demo-node"
+  description = "Security group for all nodes in the cluster"
+  #vpc_id      = "${aws_vpc.demo.id}"
+  vpc_id      = "${var.vpc_id}"
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = [ "0.0.0.0/0" ]
   }
 
-  instance_types  = ["t2.micro"]
+  tags = "${
+    tomap({
+     "Name" = "terraform-eks-demo-node",
+     "kubernetes.io/cluster/${aws_eks_cluster.main.name}" = "owned"
+    })
+  }"
+}
 
-  version = var.k8s_version
+resource "aws_security_group_rule" "demo-node-ingress-self" {
+  description              = "Allow node to communicate with each other"
+  from_port                = 0
+  protocol                 = "-1"
+  security_group_id        = "${aws_security_group.demo-node.id}"
+  source_security_group_id = "${aws_security_group.demo-node.id}"
+  to_port                  = 0
+  type                     = "ingress"
+}
 
-  tags = {
-    Name        = "${var.name}-${var.environment}-eks-node-group"
-    Environment = var.environment
+resource "aws_security_group_rule" "demo-node-ingress-cluster-https" {
+  description              = "Allow worker Kubelets and pods to receive communication from the cluster control plane"
+  from_port                = 443
+  protocol                 = "tcp"
+  security_group_id        = "${aws_security_group.demo-node.id}"
+  source_security_group_id = "${aws_security_group.demo-cluster.id}"
+  to_port                  = 443
+  type                     = "ingress"
+}
+
+resource "aws_security_group_rule" "demo-node-egress-cluster-https" {
+  description              = "Allow worker Kubelets and pods to talk back to cluster control plane"
+  from_port                = 443
+  protocol                 = "tcp"
+  security_group_id        = "${aws_security_group.demo-cluster.id}"
+  source_security_group_id = "${aws_security_group.demo-node.id}"
+  to_port                  = 443
+  type                     = "ingress"
+}
+
+resource "aws_security_group_rule" "demo-node-ingress-cluster-others" {
+  description              = "Allow worker Kubelets and pods to receive communication from the cluster control plane"
+  from_port                = 0
+  protocol                 = "-1"
+  security_group_id        = "${aws_security_group.demo-node.id}"
+  source_security_group_id = "${aws_security_group.demo-cluster.id}"
+  to_port                  = 0
+  type                     = "ingress"
+}
+
+resource "aws_security_group_rule" "Allow-SSH" {
+  description              = "Allow pods to communicate with the cluster API Server"
+  from_port                = 22
+  protocol                 = "tcp"
+  security_group_id        = "${aws_security_group.demo-node.id}"
+  cidr_blocks              = ["0.0.0.0/0"]
+  to_port                  = 22
+  type                     = "ingress"
+}
+
+## EKS-Optimized AMIs details can be found here.
+## https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html
+data "aws_ami" "eks-worker" {
+  filter {
+    name   = "name"
+    values = ["amazon-eks-node-${aws_eks_cluster.main.version}-v*"]
   }
 
-  # Ensure that IAM Role permissions are created before and deleted after EKS Node Group handling.
-  # Otherwise, EKS will not be able to properly delete EC2 Instances and Elastic Network Interfaces.
+  most_recent = true
+  owners      = ["602401143452"] # Amazon EKS AMI Account ID
+}
+
+# This data source is included for ease of sample architecture deployment
+# and can be swapped out as necessary.
+data "aws_region" "current" {}
+
+# EKS currently documents this required userdata for EKS worker nodes to
+# properly configure Kubernetes applications on the EC2 instance.
+# We utilize a Terraform local here to simplify Base64 encoding this
+# information into the AutoScaling Launch Configuration.
+# More information: https://docs.aws.amazon.com/eks/latest/userguide/launch-workers.html
+locals {
+  demo-node-userdata = <<USERDATA
+#!/bin/bash
+set -o xtrace
+/etc/eks/bootstrap.sh --apiserver-endpoint '${aws_eks_cluster.main.endpoint}' --b64-cluster-ca '${aws_eks_cluster.main.certificate_authority.0.data}' '${aws_eks_cluster.main.name}' && sudo yum update -y && sudo yum install amazon-cloudwatch-agent -y && sudo amazon-linux-extras install epel -y && sudo yum install stress -y
+USERDATA
+}
+
+resource "aws_launch_configuration" "demo" {
+  associate_public_ip_address = true
+  iam_instance_profile        = "${aws_iam_instance_profile.eks_iam_instance_profile.name}"
+  image_id                    = "${data.aws_ami.eks-worker.id}"
+  instance_type               = "m4.large"
+  name_prefix                 = "terraform-eks-demo"
+  security_groups             = [
+                                 aws_security_group.demo-node.id, 
+                                 aws_security_group.demo-cluster.id
+                                 ]
+  user_data_base64            = "${base64encode(local.demo-node-userdata)}"
+  key_name                    = "eks-keypair"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+## AWS Autoscaling Group - https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/autoscaling_group
+resource "aws_autoscaling_group" "demo" {
+  desired_capacity     = 3
+  launch_configuration = "${aws_launch_configuration.demo.id}"
+  max_size             = 6
+  min_size             = 3
+  force_delete         = true
+  name                 = "terraform-eks"
+  #vpc_zone_identifier  = [vpc_config]
+  #subnet_ids           = var.private_subnets.*.id
+  vpc_zone_identifier  = [var.public_subnets[0].id, var.public_subnets[1].id, var.public_subnets[2].id, var.private_subnets[0].id, var.private_subnets[1].id, var.private_subnets[2].id]
+  
+  timeouts {
+    delete = "15m"
+  }
+
+  tag {
+    key                 = "Name"
+    value               = "terraform-eks-demo"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "kubernetes.io/cluster/${aws_eks_cluster.main.name}"
+    value               = "owned"
+    propagate_at_launch = true
+  }
   depends_on = [
     aws_iam_role_policy_attachment.AmazonEKSWorkerNodePolicy,
     aws_iam_role_policy_attachment.AmazonEKS_CNI_Policy,
     aws_iam_role_policy_attachment.AmazonEC2ContainerRegistryReadOnly,
   ]
 }
+
+## https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/autoscaling_policy#policy_type
+resource "aws_autoscaling_policy" "asg-policy" {
+  name                      = "eks-asg-cpu-policy"
+  #scaling_adjustment        = 4
+  policy_type               = "TargetTrackingScaling"
+  estimated_instance_warmup = 100
+  #cooldown                  = 60
+  autoscaling_group_name    = aws_autoscaling_group.demo.name
+
+  target_tracking_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ASGAverageCPUUtilization"
+    }
+
+    target_value = 20.0
+  }
+}
+# resource "aws_eks_node_group" "main" {
+#   cluster_name    = aws_eks_cluster.main.name
+#   node_group_name = "kube-system"
+
+#   node_role_arn   = aws_iam_role.eks_node_group_role.arn
+#   subnet_ids      = var.private_subnets.*.id
+
+#   scaling_config {
+#     desired_size = 3
+#     max_size     = 6
+#     min_size     = 3
+#   }
+
+#   instance_types  = ["t2.micro"]
+
+#   version = var.k8s_version
+
+#   tags = {
+#     Name        = "${var.name}-${var.environment}-eks-node-group"
+#     Environment = var.environment
+#   }
+
+#   # Ensure that IAM Role permissions are created before and deleted after EKS Node Group handling.
+#   # Otherwise, EKS will not be able to properly delete EC2 Instances and Elastic Network Interfaces.
+#   depends_on = [
+#     aws_iam_role_policy_attachment.AmazonEKSWorkerNodePolicy,
+#     aws_iam_role_policy_attachment.AmazonEKS_CNI_Policy,
+#     aws_iam_role_policy_attachment.AmazonEC2ContainerRegistryReadOnly,
+#   ]
+# }
 
 data "template_file" "kubeconfig" {
   template = file("${path.module}/templates/kubeconfig.tpl")
@@ -235,6 +489,32 @@ data "template_file" "kubeconfig" {
 resource "local_file" "kubeconfig" {
   content  = data.template_file.kubeconfig.rendered
   filename = pathexpand("${var.kubeconfig_path}/config")
+}
+
+locals {
+  config_map_aws_auth = <<CONFIGMAPAWSAUTH
+
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aws-auth
+  namespace: kube-system
+data:
+  mapRoles: |
+    - rolearn: ${aws_iam_role.eks_node_group_role.arn}
+      username: system:node:{{EC2PrivateDNSName}}
+      groups:
+        - system:bootstrappers
+        - system:nodes
+        - system:node-proxier
+    - rolearn: ${aws_iam_role.fargate_pod_execution_role.arn}
+      username: system:node:{{SessionName}}
+CONFIGMAPAWSAUTH
+}
+
+output "config_map_aws_auth" {
+  value = "${local.config_map_aws_auth}"
 }
 
 output "kubectl_config" {

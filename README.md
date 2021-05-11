@@ -1,5 +1,9 @@
 # Terraform - Provision an EKS Cluster
 
+## Pre-requisites 
+#### Create an s3 bucket on the same account and assign correct permissions on the bucket for the user which will create the EKS stack. Also update the bucket name in the `backend.tf` file.
+#### Create a keypair and update the keypair name in the `launch configuration` resource in `eks/main.tf` file.
+
 ## To deploy the AWS Load Balancer Controller to an Amazon EKS cluster
 
 ## In the following steps, replace the <example values> (including <>) with your own values.

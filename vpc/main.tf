@@ -1,5 +1,6 @@
-/* IMPORTANT: https://docs.aws.amazon.com/eks/latest/userguide/network_reqs.html */
-
+/* IMPORTANT: https://docs.aws.amazon.com/eks/latest/userguide/network_reqs.html 
+https://aws.github.io/aws-eks-best-practices/reliability/docs/networkmanagement/ */
+## https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc
 resource "aws_vpc" "main" {
   cidr_block           = var.cidr
   enable_dns_support   = true
@@ -12,6 +13,7 @@ resource "aws_vpc" "main" {
   }
 }
 
+##https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/internet_gateway
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 
@@ -21,6 +23,7 @@ resource "aws_internet_gateway" "main" {
   }
 }
 
+##https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/nat_gateway
 resource "aws_nat_gateway" "main" {
   count         = length(var.private_subnets)
   allocation_id = element(aws_eip.nat.*.id, count.index)
@@ -33,6 +36,7 @@ resource "aws_nat_gateway" "main" {
   }
 }
 
+##https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eip
 resource "aws_eip" "nat" {
   count = length(var.private_subnets)
   vpc = true
@@ -57,6 +61,7 @@ resource "aws_subnet" "private" {
   }
 }
 
+##https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/subnet
 resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = element(var.public_subnets, count.index)
@@ -187,4 +192,12 @@ output "public_subnets" {
 
 output "private_subnets" {
   value = aws_subnet.private
+}
+
+output "public_subnet_ids" {
+  value = ["${aws_subnet.public.*.id}"]
+}
+
+output "private_subnet_ids" {
+  value = ["${aws_subnet.private.*.id}"]
 }

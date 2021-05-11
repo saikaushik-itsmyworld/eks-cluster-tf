@@ -14,6 +14,12 @@ variable "k8s_version" {
   description = "Kubernetes version."
 }
 
+variable "eks_worker_ami_name_filter" {
+  type        = string
+  description = "AMI name filter to lookup the most recent EKS AMI if `image_id` is not provided"
+  default     = "amazon-eks-node-*"
+}
+
 variable "vpc_id" {
   description = "The VPC the cluser should be created in"
 }
@@ -25,6 +31,14 @@ variable "private_subnets" {
 variable "public_subnets" {
   description = "List of private subnet IDs"
 }
+
+# variable "private_subnet_ids" {
+#   description = "List of private subnet ids"
+# }
+
+# variable "public_subnet_ids" {
+#   description = "List of public subnet ids"
+# }
 
 variable "kubeconfig_path" {
   description = "Path where the config file for kubectl should be written to"
