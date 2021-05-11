@@ -1,4 +1,5 @@
-/* IMPORTANT: https://docs.aws.amazon.com/eks/latest/userguide/network_reqs.html */
+/* IMPORTANT: https://docs.aws.amazon.com/eks/latest/userguide/network_reqs.html 
+https://aws.github.io/aws-eks-best-practices/reliability/docs/networkmanagement/ */
 ## https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc
 resource "aws_vpc" "main" {
   cidr_block           = var.cidr
@@ -60,6 +61,7 @@ resource "aws_subnet" "private" {
   }
 }
 
+##https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/subnet
 resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = element(var.public_subnets, count.index)
